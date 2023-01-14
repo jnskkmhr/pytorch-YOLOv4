@@ -19,42 +19,53 @@ from tool.torch_utils import *
 from tool.darknet2pytorch import Darknet
 import torch
 import argparse
+import torch.onnx as torch_onnx
 
 """hyper parameters"""
-use_cuda = True
+use_cuda = False
 
-def detect_cv2(cfgfile, weightfile, imgfile):
+def convert_to_onnx(net, output_name, input_size):
+    input = torch.randn(1, 3, input_size[0], input_size[1])
+
+    torch.onnx.export(net, input, output_name, verbose=True)
+
+def detect_cv2(cfgfile, weightfile, imgfile, savename):
     import cv2
     m = Darknet(cfgfile)
 
     m.print_network()
     m.load_weights(weightfile)
     print('Loading weights from %s... Done!' % (weightfile))
+    torch.save(m.to('cpu').state_dict(), savename+'.pth')
+    print('saved model weight in .pth')
+    convert_to_onnx(m, savename+'.onnx', [608, 608])
+    print('saved model weight in .onnx')
+
 
     if use_cuda:
         m.cuda()
 
-    num_classes = m.num_classes
-    if num_classes == 20:
-        namesfile = 'data/voc.names'
-    elif num_classes == 80:
-        namesfile = 'data/coco.names'
-    else:
-        namesfile = 'data/x.names'
-    class_names = load_class_names(namesfile)
+    # num_classes = m.num_classes
+    # if num_classes == 20:
+    #     namesfile = 'data/voc.names'
+    # elif num_classes == 80:
+    #     namesfile = 'data/coco.names'
+    # else:
+    #     namesfile = 'data/x.names'
+    # class_names = load_class_names(namesfile)
 
-    img = cv2.imread(imgfile)
-    sized = cv2.resize(img, (m.width, m.height))
-    sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
+    # img = cv2.imread(imgfile)
+    # sized = cv2.resize(img, (m.width, m.height))
+    # sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
 
-    for i in range(2):
-        start = time.time()
-        boxes = do_detect(m, sized, 0.4, 0.6, use_cuda)
-        finish = time.time()
-        if i == 1:
-            print('%s: Predicted in %f seconds.' % (imgfile, (finish - start)))
+    # for i in range(2):
+    #     start = time.time()
+    #     boxes = do_detect(m, sized, 0.4, 0.6, use_cuda)
+    #     finish = time.time()
+    #     if i == 1:
+    #         print('%s: Predicted in %f seconds.' % (imgfile, (finish - start)))
 
-    plot_boxes_cv2(img, boxes[0], savename='predictions.jpg', class_names=class_names)
+    # plot_boxes_cv2(img, boxes[0], savename='predictions.jpg', class_names=class_names)
 
 
 def detect_cv2_camera(cfgfile, weightfile):
@@ -148,8 +159,9 @@ def get_args():
     parser.add_argument('-imgfile', type=str,
                         default='./data/mscoco2017/train2017/190109_180343_00154162.jpg',
                         help='path of your image file.', dest='imgfile')
-    parser.add_argument('-torch', type=bool, default=false,
+    parser.add_argument('-torch', type=bool, default=False,
                         help='use torch weights')
+    parser.add_argument('-model_name', type=str, default='yolov4')
     args = parser.parse_args()
 
     return args
@@ -158,7 +170,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     if args.imgfile:
-        detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
+        detect_cv2(args.cfgfile, args.weightfile, args.imgfile, args.model_name)
         # detect_imges(args.cfgfile, args.weightfile)
         # detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
         # detect_skimage(args.cfgfile, args.weightfile, args.imgfile)
