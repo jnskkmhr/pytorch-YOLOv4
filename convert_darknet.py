@@ -29,7 +29,7 @@ def convert_to_onnx(net, output_name, input_size):
 
     torch.onnx.export(net, input, output_name, verbose=True)
 
-def detect_cv2(cfgfile, weightfile, imgfile, savename):
+def detect_cv2(cfgfile, weightfile, imgfile, savename, input_size):
     import cv2
     m = Darknet(cfgfile)
 
@@ -38,7 +38,7 @@ def detect_cv2(cfgfile, weightfile, imgfile, savename):
     print('Loading weights from %s... Done!' % (weightfile))
     torch.save(m.to('cpu').state_dict(), savename+'.pth')
     print('saved model weight in .pth')
-    convert_to_onnx(m, savename+'.onnx', [608, 608])
+    convert_to_onnx(m, savename+'.onnx', input_size)
     print('saved model weight in .onnx')
 
 
@@ -162,6 +162,7 @@ def get_args():
     parser.add_argument('-torch', type=bool, default=False,
                         help='use torch weights')
     parser.add_argument('-model_name', type=str, default='yolov4')
+    parser.add_argument('-input_size', type=int, nargs='+', required=True, help="input image size")
     args = parser.parse_args()
 
     return args
@@ -170,7 +171,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     if args.imgfile:
-        detect_cv2(args.cfgfile, args.weightfile, args.imgfile, args.model_name)
+        detect_cv2(args.cfgfile, args.weightfile, args.imgfile, args.model_name, args.input_size)
         # detect_imges(args.cfgfile, args.weightfile)
         # detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
         # detect_skimage(args.cfgfile, args.weightfile, args.imgfile)
